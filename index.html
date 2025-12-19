@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>LiteCode Hybrid</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/ace.js"></script>
+
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            user-select: none;
+        }
+        input, textarea, #editor {
+            user-select: text;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #editor {
+            flex: 1;
+            width: 100%;
+            font-size: 14px;
+        }
+
+        #sidebar {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 50;
+        }
+
+        .tab-active {
+            color: #38bdf8;
+            border-bottom: 2px solid #38bdf8;
+        }
+
+        #overlay {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(2px);
+            display: none;
+        }
+        #overlay.active {
+            display: block;
+        }
+
+        .file-tree {
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+
+        .folder-item, .file-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-radius: 4px;
+            margin: 2px 0;
+        }
+        .folder-item:hover, .file-item:hover {
+            background-color: rgba(56, 189, 248, 0.1);
+        }
+        .folder-item.active, .file-item.active {
+            background-color: rgba(56, 189, 248, 0.2);
+        }
+        .folder-children {
+            padding-left: 20px;
+            border-left: 1px dashed #334155;
+            margin-left: 12px;
+        }
+        .folder-toggle {
+            transition: transform 0.2s;
+            font-size: 10px;
+        }
+        .folder-toggle.expanded {
+            transform: rotate(90deg);
+        }
+        
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        
+        .close-sidebar-btn {
+            color: #94a3b8;
+            transition: color 0.2s, transform 0.2s;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+        }
+        .close-sidebar-btn:hover {
+            color: #f8fafc;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .close-sidebar-btn:active {
+            transform: scale(0.9);
+        }
+        
+        /* Storage selector */
+        .storage-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .storage-btn {
+            flex: 1;
+            padding: 8px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #cbd5e1;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .storage-btn.active {
+            background: #38bdf8;
+            color: white;
+            border-color: #38bdf8;
+        }
+        .storage-btn:hover:not(.active) {
+            background: #334155;
+        }
+    </style>
+</head>
+<body class="safe-area-inset">
+
+    <!-- Header Native Style -->
+    <header class="h-14 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 shrink-0">
+        <div class="flex items-center gap-4">
+            <button id="menuBtn" class="p-1 text-slate-400 active:scale-90 transition-transform">
+                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+            <h1 class="font-bold text-sm tracking-widest text-white">LITECODE <span class="text-sky-400">HYBRID</span></h1>
+        </div>
+        <div class="flex gap-4 h-full">
+            <button onclick="switchTab('edit')" id="tabEdit" class="tab-active text-xs font-bold px-2">EDITOR</button>
+            <button onclick="switchTab('run')" id="tabRun" class="text-xs font-bold px-2 text-slate-500">PRATINJAU</button>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden relative">
+        <!-- Overlay -->
+        <div id="overlay" class="fixed inset-0 z-40" onclick="toggleSidebar()"></div>
+
+        <!-- Sidebar (File Explorer & Actions) -->
+        <aside id="sidebar" class="fixed inset-y-0 left-0 w-80 bg-slate-900 border-r border-slate-800 flex flex-col -translate-x-full shadow-2xl z-50">
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+                <span class="text-[10px] font-bold text-slate-500 tracking-tighter">FILE EXPLORER</span>
+                <div class="flex items-center gap-2">
+                    <button onclick="showNewFileDialog()" class="text-slate-400 hover:text-sky-400 transition-colors p-1" title="File Baru">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                    </button>
+                    <button onclick="showNewFolderDialog()" class="text-slate-400 hover:text-sky-400 transition-colors p-1" title="Folder Baru">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                    </button>
+                    <!-- Tombol Close Sidebar -->
+                    <button onclick="toggleSidebar()" class="close-sidebar-btn" title="Tutup Sidebar">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Storage Selector -->
+            <div class="px-4 py-3 border-b border-slate-800">
+                <div class="storage-selector">
+                    <button onclick="changeStorage('internal')" id="storageInternal" class="storage-btn active">
+                        📱 INTERNAL
+                    </button>
+                    <button onclick="changeStorage('sd')" id="storageSD" class="storage-btn">
+                        💾 SD CARD
+                    </button>
+                </div>
+                <div id="storagePath" class="text-[10px] text-slate-400 truncate mt-1">
+                    /storage/emulated/0/LiteCode/
+                </div>
+            </div>
+            
+            <div id="file-list" class="flex-1 py-3 overflow-y-auto px-2 file-tree">
+                <!-- File tree akan muncul di sini -->
+            </div>
+
+            <!-- Tombol Simpan & Backup -->
+            <div class="p-4 border-t border-slate-800 bg-slate-950/30">
+                <button onclick="saveAllFiles()" class="w-full bg-sky-600 active:bg-sky-700 text-white font-bold py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 text-sm transition-all active:scale-95 mb-3">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
+                    SIMPAN SEMUA FILE
+                </button>
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="exportBackup()" class="bg-emerald-900/30 hover:bg-emerald-900/50 text-emerald-400 py-2 rounded-lg text-xs border border-emerald-800/50">
+                        📤 Backup
+                    </button>
+                    <button onclick="importBackup()" class="bg-purple-900/30 hover:bg-purple-900/50 text-purple-400 py-2 rounded-lg text-xs border border-purple-800/50">
+                        📥 Restore
+                    </button>
+                    <button onclick="openFileManager()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded-lg text-xs border border-slate-700 col-span-2">
+                        📂 Buka di File Manager
+                    </button>
+                </div>
+                
+                <div id="storageInfo" class="text-[10px] text-center text-slate-500 mt-3 uppercase tracking-tighter">
+                    <div class="flex justify-between px-2">
+                        <span>Total: <span id="totalFiles">0</span> file</span>
+                        <span><span id="storageUsed">0KB</span> used</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="flex-1 flex flex-col relative">
+            <div id="editorScreen" class="h-full flex flex-col">
+                <div class="bg-slate-950/50 px-4 py-1 text-[10px] font-mono text-slate-500 flex justify-between items-center">
+                    <span id="file-breadcrumb">/project/index.html</span>
+                    <div class="flex gap-2">
+                        <button onclick="renameCurrentFile()" class="text-slate-400 hover:text-sky-400 p-1" title="Rename File">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                        </button>
+                        <button onclick="deleteCurrentFile()" class="text-slate-400 hover:text-red-400 p-1" title="Hapus File">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div id="editor"></div>
+            </div>
+
+            <div id="previewScreen" class="hidden h-full bg-white">
+                <iframe id="previewFrame" class="w-full h-full border-0"></iframe>
+            </div>
+        </main>
+    </div>
+
+    <!-- Dialog untuk buat file/folder baru -->
+    <div id="newFileDialog" class="fixed inset-0 bg-black/70 z-[100] hidden items-center justify-center p-4">
+        <div class="bg-slate-800 rounded-2xl p-6 w-96 max-w-full shadow-2xl border border-slate-700">
+            <h3 class="text-lg font-bold mb-4 text-white" id="dialogTitle">Buat File Baru</h3>
+            <input type="text" id="newFileName" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white mb-4 focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="contoh: script.js" autofocus>
+            <select id="fileType" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white mb-4 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                <option value=".html">HTML File (.html)</option>
+                <option value=".css">CSS File (.css)</option>
+                <option value=".js">JavaScript File (.js)</option>
+                <option value=".txt">Text File (.txt)</option>
+                <option value="folder">Folder</option>
+            </select>
+            <select id="targetFolder" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white mb-4 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                <option value="/">Root (/)</option>
+            </select>
+            <div class="flex gap-3">
+                <button onclick="createNewItem()" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white py-3 rounded-xl font-bold transition-colors">Buat</button>
+                <button onclick="closeDialog()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl transition-colors">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifikasi Toast -->
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 text-white px-6 py-3 rounded-2xl shadow-2xl opacity-0 transition-opacity pointer-events-none z-[100] text-sm min-w-[200px] text-center">
+        Projek disimpan!
+    </div>
+
+    <script>
+        // Inisialisasi Ace Editor
+        const aceEditor = ace.edit("editor");
+        aceEditor.setTheme("ace/theme/monokai");
+        aceEditor.session.setMode("ace/mode/html");
+        aceEditor.setOptions({
+            showPrintMargin: false,
+            useSoftTabs: true,
+            tabSize: 2,
+            wrap: true,
+            highlightActiveLine: true,
+            behavioursEnabled: true,
+            fontSize: "14px"
+        });
+
+        // =================== FILE SYSTEM MANAGER ===================
+        class FileSystemManager {
+            constructor() {
+                this.currentStorage = 'internal'; // 'internal' atau 'sd'
+                this.basePath = {
+                    internal: '/storage/emulated/0/LiteCode/',
+                    sd: '/storage/sdcard/LiteCode/'
+                };
+                this.currentDirectory = '/';
+                this.filesCache = {};
+                this.isCordova = typeof cordova !== 'undefined';
+                this.isCapacitor = typeof Capacitor !== 'undefined';
+                this.isAndroid = /android/i.test(navigator.userAgent);
+                
+                this.init();
+            }
+            
+            async init() {
+                console.log('FileSystemManager initialized');
+                console.log('Platform:', {
+                    isCordova: this.isCordova,
+                    isCapacitor: this.isCapacitor,
+                    isAndroid: this.isAndroid,
+                    userAgent: navigator.userAgent
+                });
+                
+                // Buat folder utama jika belum ada
+                await this.ensureBaseDirectories();
+                
+                // Load file structure
+                await this.loadFileStructure();
+            }
+            
+            async ensureBaseDirectories() {
+                try {
+                    // Untuk web debugging, gunakan localStorage
+                    if (!this.isCordova && !this.isCapacitor) {
+                        console.log('Running in web mode, using localStorage');
+                        return;
+                    }
+                    
+                    // Untuk Cordova
+                    if (this.isCordova) {
+                        await this.ensureCordovaDirectories();
+                    }
+                    
+                    // Untuk Capacitor
+                    if (this.isCapacitor) {
+                        await this.ensureCapacitorDirectories();
+                    }
+                    
+                } catch (error) {
+                    console.error('Error creating directories:', error);
+                    this.showError('Gagal membuat folder: ' + error.message);
+                }
+            }
+            
+            async ensureCordovaDirectories() {
+                return new Promise((resolve, reject) => {
+                    // Request permission untuk akses file system
+                    if (this.isAndroid) {
+                        cordova.plugins.permissions.requestPermission(
+                            cordova.plugins.permissions.WRITE_EXTERNAL_STORAGE,
+                            async (status) => {
+                                if (status.hasPermission) {
+                                    console.log('Storage permission granted');
+                                    
+                                    // Buat folder LiteCode di root
+                                    window.resolveLocalFileSystemURL(
+                                        this.basePath.internal,
+                                        () => {
+                                            console.log('Directory already exists:', this.basePath.internal);
+                                            resolve();
+                                        },
+                                        () => {
+                                            // Folder belum ada, buat baru
+                                            window.requestFileSystem(LocalFileSystem.PERSISTENT, 0, (fs) => {
+                                                fs.root.getDirectory('LiteCode', { create: true }, () => {
+                                                    console.log('Created LiteCode directory');
+                                                    resolve();
+                                                }, reject);
+                                            }, reject);
+                                        }
+                                    );
+                                } else {
+                                    reject(new Error('Storage permission denied'));
+                                }
+                            },
+                            reject
+                        );
+                    } else {
+                        resolve();
+                    }
+                });
+            }
+            
+            async ensureCapacitorDirectories() {
+                // Untuk Capacitor, gunakan Filesystem API
+                const { Filesystem } = Capacitor.Plugins;
+                
+                try {
+                    // Coba buat folder
+                    await Filesystem.mkdir({
+                        path: 'LiteCode',
+                        directory: Directory.ExternalStorage
+                    });
+                    console.log('Created LiteCode directory (Capacitor)');
+                } catch (error) {
+                    // Folder mungkin sudah ada
+                    console.log('Directory may already exist:', error.message);
+                }
+            }
+            
+            async loadFileStructure() {
+                try {
+                    // Jika di web, load dari localStorage
+                    if (!this.isCordova && !this.isCapacitor) {
+                        const saved = localStorage.getItem('litecode_filesystem');
+                        this.filesCache = saved ? JSON.parse(saved) : await this.createDefaultStructure();
+                    } else {
+                        // Jika di device, scan file system
+                        this.filesCache = await this.scanFileSystem();
+                    }
+                    
+                    this.updateStorageInfo();
+                    return this.filesCache;
+                    
+                } catch (error) {
+                    console.error('Error loading file structure:', error);
+                    this.filesCache = await this.createDefaultStructure();
+                    return this.filesCache;
+                }
+            }
+            
+            async createDefaultStructure() {
+                const defaultStructure = {
+                    '/': {
+                        type: 'folder',
+                        children: {
+                            'index.html': {
+                                type: 'file',
+                                content: `<!DOCTYPE html>
+<html>
+<head>
+    <title>My Hybrid App</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 50px;
+        }
+        .container {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        button {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎉 Aplikasi Hybrid Berjalan!</h1>
+        <p>Ini adalah aplikasi hybrid yang dibuat dengan LiteCode.</p>
+        <p>Edit file HTML, CSS, dan JavaScript di sidebar.</p>
+        <button onclick="showAlert()">Klik untuk Test</button>
+    </div>
+
+    <script>
+        function showAlert() {
+            alert("JavaScript bekerja dengan baik! 🚀");
+            console.log("Aplikasi hybrid berjalan di WebView");
+        }
+    <\/script>
+</body>
+</html>`,
+                                path: '/index.html',
+                                size: 0,
+                                modified: Date.now()
+                            },
+                            'style.css': {
+                                type: 'file',
+                                content: `/* CSS utama untuk aplikasi */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.btn-primary {
+    background-color: #38bdf8;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+}`,
+                                path: '/style.css',
+                                size: 0,
+                                modified: Date.now()
+                            },
+                            'app.js': {
+                                type: 'file',
+                                content: `// JavaScript utama aplikasi
+console.log('Aplikasi hybrid dimuat');
+
+function initApp() {
+    console.log('Aplikasi siap digunakan');
+    // Tambahkan kode inisialisasi di sini
+}
+
+// Event saat DOM siap
+document.addEventListener('DOMContentLoaded', initApp);`,
+                                path: '/app.js',
+                                size: 0,
+                                modified: Date.now()
+                            },
+                            'assets': {
+                                type: 'folder',
+                                children: {},
+                                path: '/assets',
+                                modified: Date.now()
+                            }
+                        }
+                    }
+                };
+                
+                // Simpan ke localStorage untuk web
+                if (!this.isCordova && !this.isCapacitor) {
+                    localStorage.setItem('litecode_filesystem', JSON.stringify(defaultStructure));
+                }
+                
+                return defaultStructure;
+            }
+            
+            async scanFileSystem() {
+                // Ini akan diimplementasikan untuk Cordova/Capacitor
+                // Untuk sekarang kembalikan default structure
+                return await this.createDefaultStructure();
+            }
+            
+            async saveFile(path, content) {
+                try {
+                    const filePath = this.getFullPath(path);
+                    
+                    // Update cache
+                    this.updateFileInCache(path, content);
+                    
+                    // Jika di web, simpan ke localStorage
+                    if (!this.isCordova && !this.isCapacitor) {
+                        localStorage.setItem('litecode_filesystem', JSON.stringify(this.filesCache));
+                        console.log('Saved to localStorage:', path);
+                        return true;
+                    }
+                    
+                    // Jika di Cordova
+                    if (this.isCordova) {
+                        return await this.saveFileCordova(filePath, content);
+                    }
+                    
+                    // Jika di Capacitor
+                    if (this.isCapacitor) {
+                        return await this.saveFileCapacitor(filePath, content);
+                    }
+                    
+                    return false;
+                    
+                } catch (error) {
+                    console.error('Error saving file:', error);
+                    this.showError('Gagal menyimpan file: ' + error.message);
+                    return false;
+                }
+            }
+            
+            async saveFileCordova(filePath, content) {
+                return new Promise((resolve, reject) => {
+                    window.resolveLocalFileSystemURL(
+                        cordova.file.externalRootDirectory,
+                        (root) => {
+                            // Buat path relative
+                            const relativePath = filePath.replace(cordova.file.externalRootDirectory, '');
+                            const pathParts = relativePath.split('/').filter(p => p);
+                            
+                            // Fungsi rekursif untuk membuat folder dan file
+                            const createPath = (currentDir, parts, index, callback) => {
+                                if (index < parts.length - 1) {
+                                    // Ini adalah folder
+                                    currentDir.getDirectory(parts[index], { create: true }, (dir) => {
+                                        createPath(dir, parts, index + 1, callback);
+                                    }, reject);
+                                } else {
+                                    // Ini adalah file terakhir
+                                    currentDir.getFile(parts[index], { create: true }, (fileEntry) => {
+                                        fileEntry.createWriter((writer) => {
+                                            writer.onwriteend = () => {
+                                                console.log('File saved:', filePath);
+                                                resolve(true);
+                                            };
+                                            writer.onerror = reject;
+                                            writer.write(content);
+                                        }, reject);
+                                    }, reject);
+                                }
+                            };
+                            
+                            createPath(root, pathParts, 0, resolve);
+                        },
+                        reject
+                    );
+                });
+            }
+            
+            async saveFileCapacitor(filePath, content) {
+                const { Filesystem } = Capacitor.Plugins;
+                
+                try {
+                    // Tulis file
+                    await Filesystem.writeFile({
+                        path: filePath,
+                        data: content,
+                        directory: Directory.ExternalStorage,
+                        encoding: Encoding.UTF8
+                    });
+                    
+                    console.log('File saved (Capacitor):', filePath);
+                    return true;
+                } catch (error) {
+                    throw error;
+                }
+            }
+            
+            async saveAllFiles() {
+                try {
+                    let savedCount = 0;
+                    
+                    // Simpan semua file dari cache
+                    const saveRecursive = async (node, path) => {
+                        if (node.type === 'file') {
+                            const success = await this.saveFile(path, node.content);
+                            if (success) savedCount++;
+                        } else if (node.type === 'folder' && node.children) {
+                            for (const [name, child] of Object.entries(node.children)) {
+                                const childPath = path === '/' ? `/${name}` : `${path}/${name}`;
+                                await saveRecursive(child, childPath);
+                            }
+                        }
+                    };
+                    
+                    await saveRecursive(this.filesCache['/'], '/');
+                    
+                    this.showToast(`Berhasil menyimpan ${savedCount} file`);
+                    this.updateStorageInfo();
+                    return true;
+                    
+                } catch (error) {
+                    console.error('Error saving all files:', error);
+                    this.showError('Gagal menyimpan semua file: ' + error.message);
+                    return false;
+                }
+            }
+            
+            updateFileInCache(path, content) {
+                const segments = path.split('/').filter(s => s);
+                let current = this.filesCache['/'];
+                
+                for (let i = 0; i < segments.length - 1; i++) {
+                    if (current.children && current.children[segments[i]]) {
+                        current = current.children[segments[i]];
+                    } else {
+                        return false;
+                    }
+                }
+                
+                const fileName = segments[segments.length - 1];
+                if (current.children && current.children[fileName]) {
+                    current.children[fileName].content = content;
+                    current.children[fileName].size = new Blob([content]).size;
+                    current.children[fileName].modified = Date.now();
+                    return true;
+                }
+                
+                return false;
+            }
+            
+            getFullPath(relativePath) {
+                const base = this.basePath[this.currentStorage];
+                // Hapus leading slash jika ada
+                const cleanPath = relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
+                return base + cleanPath;
+            }
+            
+            updateStorageInfo() {
+                let totalFiles = 0;
+                let totalSize = 0;
+                
+                const calculateStats = (node) => {
+                    if (node.type === 'file') {
+                        totalFiles++;
+                        totalSize += node.size || 0;
+                    } else if (node.type === 'folder' && node.children) {
+                        Object.values(node.children).forEach(calculateStats);
+                    }
+                };
+                
+                calculateStats(this.filesCache['/']);
+                
+                // Update UI
+                document.getElementById('totalFiles').textContent = totalFiles;
+                document.getElementById('storageUsed').textContent = this.formatFileSize(totalSize);
+                
+                // Update storage path display
+                document.getElementById('storagePath').textContent = this.getFullPath('/');
+            }
+            
+            formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+            
+            showToast(message, type = 'success') {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.style.opacity = '1';
+                toast.style.backgroundColor = type === 'error' ? '#dc2626' : '#1e293b';
+                
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                }, 2000);
+            }
+            
+            showError(message) {
+                this.showToast(message, 'error');
+            }
+        }
+
+        // =================== GLOBAL STATE ===================
+        let fileSystemManager;
+        let currentPath = '/';
+        let activeFile = '/index.html';
+        let sidebarOpen = false;
+
+        // =================== INITIALIZATION ===================
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Inisialisasi File System Manager
+            fileSystemManager = new FileSystemManager();
+            
+            // Tunggu file system siap
+            await fileSystemManager.loadFileStructure();
+            
+            // Buka file default
+            openFile('/index.html');
+            renderFileTree();
+            
+            // Auto-save setiap 30 detik
+            setInterval(saveCurrentFile, 30000);
+            
+            // Setup event untuk tutup sidebar dengan ESC
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && sidebarOpen) {
+                    toggleSidebar();
+                }
+            });
+            
+            console.log('LiteCode Hybrid initialized');
+        });
+
+        // =================== UI FUNCTIONS ===================
+        function toggleSidebar(forceClose) {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            
+            if (forceClose === false || (sidebarOpen && forceClose !== true)) {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.remove('active');
+                sidebarOpen = false;
+            } else {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.add('active');
+                sidebarOpen = true;
+            }
+        }
+
+        document.getElementById('menuBtn').addEventListener('click', function() {
+            toggleSidebar();
+        });
+
+        function changeStorage(type) {
+            if (type === fileSystemManager.currentStorage) return;
+            
+            // Save current files first
+            saveAllFiles();
+            
+            // Change storage
+            fileSystemManager.currentStorage = type;
+            
+            // Update UI
+            document.getElementById('storageInternal').classList.toggle('active', type === 'internal');
+            document.getElementById('storageSD').classList.toggle('active', type === 'sd');
+            
+            // Reload files from new storage
+            fileSystemManager.loadFileStructure().then(() => {
+                renderFileTree();
+                fileSystemManager.showToast(`Beralih ke penyimpanan ${type === 'internal' ? 'Internal' : 'SD Card'}`);
+            });
+        }
+
+        // =================== FILE OPERATIONS ===================
+        function renderFileTree() {
+            const container = document.getElementById('file-list');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            function renderFolder(folder, path, parentElement) {
+                if (!folder.children) return;
+                
+                Object.keys(folder.children).sort((a, b) => {
+                    const aIsFolder = folder.children[a].type === 'folder';
+                    const bIsFolder = folder.children[b].type === 'folder';
+                    if (aIsFolder && !bIsFolder) return -1;
+                    if (!aIsFolder && bIsFolder) return 1;
+                    return a.localeCompare(b);
+                }).forEach(name => {
+                    const item = folder.children[name];
+                    const itemPath = path === '/' ? `/${name}` : `${path}/${name}`;
+                    
+                    if (item.type === 'folder') {
+                        const folderDiv = document.createElement('div');
+                        folderDiv.className = 'folder-item';
+                        folderDiv.innerHTML = `
+                            <div class="flex items-center gap-2">
+                                <span class="folder-toggle" onclick="toggleFolder('${itemPath}')">▶</span>
+                                <span>📁</span>
+                                <span class="text-sm flex-1" onclick="openFolder('${itemPath}')">${name}</span>
+                            </div>
+                        `;
+                        parentElement.appendChild(folderDiv);
+                        
+                        const childrenDiv = document.createElement('div');
+                        childrenDiv.id = `folder-${itemPath.replace(/\//g, '-')}`;
+                        childrenDiv.className = 'folder-children hidden';
+                        renderFolder(item, itemPath, childrenDiv);
+                        parentElement.appendChild(childrenDiv);
+                    } else {
+                        const fileDiv = document.createElement('div');
+                        fileDiv.className = `file-item ${itemPath === activeFile ? 'active' : ''}`;
+                        fileDiv.onclick = () => openFile(itemPath);
+                        
+                        let icon = "📄";
+                        if (name.endsWith('.html')) icon = "🌐";
+                        if (name.endsWith('.css')) icon = "🎨";
+                        if (name.endsWith('.js')) icon = "⚡";
+                        if (name.endsWith('.txt')) icon = "📝";
+                        if (name.endsWith('.json')) icon = "📋";
+                        
+                        fileDiv.innerHTML = `<div class="flex items-center gap-2"><span>${icon}</span> <span class="text-sm">${name}</span></div>`;
+                        parentElement.appendChild(fileDiv);
+                    }
+                });
+            }
+            
+            if (fileSystemManager && fileSystemManager.filesCache['/']) {
+                renderFolder(fileSystemManager.filesCache['/'], '/', container);
+            }
+        }
+
+        function toggleFolder(path) {
+            const folderId = `folder-${path.replace(/\//g, '-')}`;
+            const folderDiv = document.getElementById(folderId);
+            if (folderDiv) {
+                folderDiv.classList.toggle('hidden');
+                const toggleIcon = folderDiv.previousElementSibling.querySelector('.folder-toggle');
+                toggleIcon.classList.toggle('expanded');
+            }
+        }
+
+        function openFolder(path) {
+            currentPath = path;
+            renderFileTree();
+        }
+
+        async function openFile(path) {
+            // Simpan file yang sedang aktif
+            saveCurrentFile();
+            
+            activeFile = path;
+            const segments = path.split('/');
+            const fileName = segments.pop();
+            const folderPath = segments.join('/') || '/';
+            
+            // Navigasi ke file di cache
+            let currentFolder = fileSystemManager.filesCache['/'];
+            if (folderPath !== '/') {
+                const folderSegments = folderPath.split('/').filter(s => s);
+                for (const seg of folderSegments) {
+                    if (currentFolder.children && currentFolder.children[seg]) {
+                        currentFolder = currentFolder.children[seg];
+                    } else {
+                        console.error('Folder not found:', seg);
+                        return;
+                    }
+                }
+            }
+            
+            const file = currentFolder.children[fileName];
+            if (file) {
+                aceEditor.setValue(file.content || '', -1);
+                
+                // Set mode editor berdasarkan ekstensi
+                const ext = fileName.split('.').pop();
+                if (ext === 'css') {
+                    aceEditor.session.setMode("ace/mode/css");
+                } else if (ext === 'js') {
+                    aceEditor.session.setMode("ace/mode/javascript");
+                } else if (ext === 'json') {
+                    aceEditor.session.setMode("ace/mode/json");
+                } else {
+                    aceEditor.session.setMode("ace/mode/html");
+                }
+                
+                document.getElementById('file-breadcrumb').textContent = path;
+                renderFileTree();
+                
+                // Tutup sidebar di mobile
+                if (window.innerWidth < 768) {
+                    toggleSidebar(false);
+                }
+            }
+        }
+
+        function saveCurrentFile() {
+            if (!activeFile || !fileSystemManager) return;
+            
+            fileSystemManager.saveFile(activeFile, aceEditor.getValue());
+        }
+
+        async function saveAllFiles() {
+            if (!fileSystemManager) return;
+            
+            saveCurrentFile();
+            await fileSystemManager.saveAllFiles();
+            
+            // Tutup sidebar setelah save
+            toggleSidebar(false);
+        }
+
+        // =================== DIALOG FUNCTIONS ===================
+        function showNewFileDialog() {
+            document.getElementById('dialogTitle').textContent = 'Buat File Baru';
+            document.getElementById('fileType').value = '.html';
+            document.getElementById('newFileName').value = '';
+            document.getElementById('newFileDialog').classList.remove('hidden');
+            
+            updateFolderSelect();
+            
+            setTimeout(() => {
+                document.getElementById('newFileName').focus();
+            }, 100);
+        }
+
+        function showNewFolderDialog() {
+            document.getElementById('dialogTitle').textContent = 'Buat Folder Baru';
+            document.getElementById('fileType').value = 'folder';
+            document.getElementById('newFileName').value = 'folder-baru';
+            document.getElementById('newFileDialog').classList.remove('hidden');
+            
+            updateFolderSelect();
+            
+            setTimeout(() => {
+                document.getElementById('newFileName').focus();
+                document.getElementById('newFileName').select();
+            }, 100);
+        }
+
+        function updateFolderSelect() {
+            const select = document.getElementById('targetFolder');
+            select.innerHTML = '<option value="/">Root (/)</option>';
+            
+            function addFolders(folder, path) {
+                if (!folder.children) return;
+                
+                Object.keys(folder.children).forEach(name => {
+                    if (folder.children[name].type === 'folder') {
+                        const folderPath = path === '/' ? `/${name}` : `${path}/${name}`;
+                        const option = document.createElement('option');
+                        option.value = folderPath;
+                        option.textContent = folderPath;
+                        select.appendChild(option);
+                        
+                        addFolders(folder.children[name], folderPath);
+                    }
+                });
+            }
+            
+            if (fileSystemManager && fileSystemManager.filesCache['/']) {
+                addFolders(fileSystemManager.filesCache['/'], '/');
+            }
+        }
+
+        function createNewItem() {
+            const name = document.getElementById('newFileName').value.trim();
+            const type = document.getElementById('fileType').value;
+            const targetFolder = document.getElementById('targetFolder').value;
+            
+            if (!name) {
+                fileSystemManager.showToast('Nama tidak boleh kosong!', 'error');
+                return;
+            }
+            
+            // Navigasi ke folder target di cache
+            let currentFolder = fileSystemManager.filesCache['/'];
+            if (targetFolder !== '/') {
+                const segments = targetFolder.split('/').filter(s => s);
+                for (const seg of segments) {
+                    if (currentFolder.children && currentFolder.children[seg]) {
+                        currentFolder = currentFolder.children[seg];
+                    } else {
+                        fileSystemManager.showToast('Folder tidak ditemukan!', 'error');
+                        return;
+                    }
+                }
+            }
+            
+            const finalName = type === 'folder' ? name : (name.endsWith(type) ? name : `${name}${type}`);
+            
+            // Cek apakah sudah ada
+            if (currentFolder.children && currentFolder.children[finalName]) {
+                fileSystemManager.showToast('Nama sudah digunakan!', 'error');
+                return;
+            }
+            
+            // Buat item baru
+            if (!currentFolder.children) {
+                currentFolder.children = {};
+            }
+            
+            if (type === 'folder') {
+                currentFolder.children[finalName] = {
+                    type: 'folder',
+                    children: {},
+                    path: targetFolder === '/' ? `/${finalName}` : `${targetFolder}/${finalName}`,
+                    modified: Date.now()
+                };
+            } else {
+                currentFolder.children[finalName] = {
+                    type: 'file',
+                    content: getDefaultContent(finalName),
+                    path: targetFolder === '/' ? `/${finalName}` : `${targetFolder}/${finalName}`,
+                    size: 0,
+                    modified: Date.now()
+                };
+            }
+            
+            // Simpan ke storage
+            if (type !== 'folder') {
+                fileSystemManager.saveFile(
+                    targetFolder === '/' ? `/${finalName}` : `${targetFolder}/${finalName}`,
+                    currentFolder.children[finalName].content
+                );
+            }
+            
+            // Update cache dan UI
+            renderFileTree();
+            closeDialog();
+            fileSystemManager.updateStorageInfo();
+            fileSystemManager.showToast(type === 'folder' ? 'Folder dibuat!' : 'File dibuat!');
+        }
+
+        function getDefaultContent(filename) {
+            if (filename.endsWith('.html')) {
+                return `<!DOCTYPE html>
+<html>
+<head>
+    <title>Halaman Baru</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Halaman Baru</h1>
+    <p>Edit halaman ini sesuai kebutuhan.</p>
+    <script src="app.js"><\/script>
+</body>
+</html>`;
+            } else if (filename.endsWith('.css')) {
+                return `/* ${filename} */
+body {
+    margin: 0;
+    padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: #f8fafc;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+}`;
+            } else if (filename.endsWith('.js')) {
+                return `// ${filename}
+console.log('${filename} dimuat');
+
+// Kode JavaScript Anda di sini
+function init() {
+    console.log('Aplikasi siap');
+}
+
+document.addEventListener('DOMContentLoaded', init);`;
+            } else if (filename.endsWith('.json')) {
+                return `{
+  "name": "${filename.replace('.json', '')}",
+  "version": "1.0.0",
+  "description": "JSON file"
+}`;
+            }
+            return `File: ${filename}`;
+        }
+
+        function closeDialog() {
+            document.getElementById('newFileDialog').classList.add('hidden');
+        }
+
+        function renameCurrentFile() {
+            if (!activeFile) {
+                fileSystemManager.showToast('Tidak ada file yang aktif!', 'error');
+                return;
+            }
+            
+            const oldPath = activeFile;
+            const segments = oldPath.split('/');
+            const oldName = segments.pop();
+            const folderPath = segments.join('/') || '/';
+            
+            const newName = prompt('Nama baru:', oldName);
+            if (!newName || newName === oldName) return;
+            
+            // Navigasi ke folder
+            let currentFolder = fileSystemManager.filesCache['/'];
+            if (folderPath !== '/') {
+                const folderSegments = folderPath.split('/').filter(s => s);
+                for (const seg of folderSegments) {
+                    if (currentFolder.children && currentFolder.children[seg]) {
+                        currentFolder = currentFolder.children[seg];
+                    } else {
+                        fileSystemManager.showToast('Folder tidak ditemukan!', 'error');
+                        return;
+                    }
+                }
+            }
+            
+            if (currentFolder.children && currentFolder.children[newName]) {
+                fileSystemManager.showToast('Nama sudah digunakan!', 'error');
+                return;
+            }
+            
+            // Rename di cache
+            currentFolder.children[newName] = currentFolder.children[oldName];
+            delete currentFolder.children[oldName];
+            
+            // Update path
+            currentFolder.children[newName].path = folderPath === '/' ? `/${newName}` : `${folderPath}/${newName}`;
+            
+            activeFile = folderPath === '/' ? `/${newName}` : `${folderPath}/${newName}`;
+            
+            // Save file dengan nama baru
+            fileSystemManager.saveFile(activeFile, currentFolder.children[newName].content);
+            
+            // Delete file lama (di device)
+            // Note: Implementasi delete file fisik akan ditambahkan
+            
+            renderFileTree();
+            fileSystemManager.updateStorageInfo();
+            fileSystemManager.showToast('File diubah!');
+        }
+
+        function deleteCurrentFile() {
+            if (!activeFile) {
+                fileSystemManager.showToast('Tidak ada file yang aktif!', 'error');
+                return;
+            }
+            
+            if (!confirm('Hapus file ini?')) return;
+            
+            const segments = activeFile.split('/');
+            const fileName = segments.pop();
+            const folderPath = segments.join('/') || '/';
+            
+            // Navigasi ke folder
+            let currentFolder = fileSystemManager.filesCache['/'];
+            if (folderPath !== '/') {
+                const folderSegments = folderPath.split('/').filter(s => s);
+                for (const seg of folderSegments) {
+                    if (currentFolder.children && currentFolder.children[seg]) {
+                        currentFolder = currentFolder.children[seg];
+                    } else {
+                        fileSystemManager.showToast('Folder tidak ditemukan!', 'error');
+                        return;
+                    }
+                }
+            }
+            
+            // Hapus dari cache
+            if (currentFolder.children && currentFolder.children[fileName]) {
+                delete currentFolder.children[fileName];
+            }
+            
+            // Hapus file fisik (akan diimplementasikan)
+            
+            activeFile = null;
+            aceEditor.setValue('');
+            document.getElementById('file-breadcrumb').textContent = '/';
+            
+            fileSystemManager.updateStorageInfo();
+            renderFileTree();
+            fileSystemManager.showToast('File dihapus!');
+        }
+
+        // =================== OTHER FUNCTIONS ===================
+        function switchTab(mode) {
+            const isEdit = mode === 'edit';
+            document.getElementById('editorScreen').classList.toggle('hidden', !isEdit);
+            document.getElementById('previewScreen').classList.toggle('hidden', isEdit);
+            
+            document.getElementById('tabEdit').className = isEdit ? 'tab-active text-xs font-bold px-2' : 'text-xs font-bold px-2 text-slate-500';
+            document.getElementById('tabRun').className = !isEdit ? 'tab-active text-xs font-bold px-2' : 'text-xs font-bold px-2 text-slate-500';
+
+            if (!isEdit) {
+                saveCurrentFile();
+                const frame = document.getElementById('previewFrame');
+                const doc = frame.contentDocument || frame.contentWindow.document;
+                doc.open();
+                doc.write(aceEditor.getValue());
+                doc.close();
+            } else {
+                aceEditor.resize();
+            }
+        }
+
+        function exportBackup() {
+            if (!fileSystemManager) return;
+            
+            saveAllFiles();
+            fileSystemManager.showToast('Backup berhasil dibuat!');
+        }
+
+        function importBackup() {
+            fileSystemManager.showToast('Fitur restore akan datang!');
+        }
+
+        function openFileManager() {
+            if (!fileSystemManager) return;
+            
+            const path = fileSystemManager.getFullPath('/');
+            fileSystemManager.showToast(`Buka: ${path}`);
+            
+            // Untuk Android, bisa buka file manager dengan intent
+            if (fileSystemManager.isCordova && fileSystemManager.isAndroid) {
+                cordova.plugins.fileOpener2.open(
+                    path,
+                    'application/vnd.android.package-archive',
+                    {
+                        error: (e) => console.error('Error opening file:', e),
+                        success: () => console.log('File opened successfully')
+                    }
+                );
+            }
+        }
+
+        // Resize editor saat window berubah
+        window.addEventListener('resize', () => {
+            aceEditor.resize();
+            if (window.innerWidth < 768 && sidebarOpen) {
+                toggleSidebar(false);
+            }
+        });
+    </script>
+</body>
+</html>
