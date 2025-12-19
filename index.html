@@ -14,8 +14,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="apple-touch-icon" href="icon-512.png">
-    <style>
-    <style>
+
+   <style>
         * {
             -webkit-tap-highlight-color: transparent;
             -webkit-touch-callout: none;
@@ -29,7 +29,9 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: #0f172a;
             color: #f8fafc;
-            height: 100vh;
+            min-height: 100dvh;
+            height: auto;
+                
             display: flex;
             flex-direction: column;
         }
@@ -147,6 +149,13 @@
         .storage-btn:hover:not(.active) {
             background: #334155;
         }
+        .safe-area-inset {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+ 
+            }
     </style>
 </head>
 <body class="safe-area-inset">
