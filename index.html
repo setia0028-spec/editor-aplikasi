@@ -2,7 +2,11 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-       <!-- PWA CONFIG -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>LiteCode Hybrid</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/ace.js"></script>
+<!-- PWA CONFIG -->
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="icon-512.png">
     
@@ -11,87 +15,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="apple-touch-icon" href="icon-512.png">
     <style>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>LiteCode Hybrid</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/ace.js"></script>
-<script>
-// PWA Installation
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function() {
-    // ⚠️ GUNAKAN PATH RELATIF YANG BENAR
-    navigator.serviceWorker.register('./service-worker.js', { 
-      scope: './'  // ⚠️ SCOPE PENTING!
-    })
-    .then(function(registration) {
-      console.log('✅ Service Worker registered:', registration.scope);
-    })
-    .catch(function(error) {
-      console.log('❌ Service Worker failed:', error);
-    });
-  });
-}
-
-// Install Prompt
-let deferredPrompt;
-const installBtn = document.createElement('button');
-
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  
-  // Show install button
-  installBtn.innerHTML = '📱 Install App';
-  installBtn.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: #38bdf8;
-    color: white;
-    border: none;
-    padding: 12px 20px;
-    border-radius: 10px;
-    font-weight: bold;
-    z-index: 9999;
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  `;
-  
-  document.body.appendChild(installBtn);
-  
-  installBtn.addEventListener('click', () => {
-    installBtn.style.display = 'none';
-    deferredPrompt.prompt();
-    
-    deferredPrompt.userChoice.then((choiceResult) => {
-      if (choiceResult.outcome === 'accepted') {
-        console.log('User installed PWA');
-      }
-      deferredPrompt = null;
-    });
-  });
-});
-
-// App installed
-window.addEventListener('appinstalled', () => {
-  console.log('🎉 PWA installed successfully');
-  if (installBtn.parentNode) {
-    installBtn.parentNode.removeChild(installBtn);
-  }
-});
-
-// Detect if running as PWA
-function isRunningAsPWA() {
-  return window.matchMedia('(display-mode: standalone)').matches || 
-         window.navigator.standalone === true ||
-         document.referrer.includes('android-app://');
-}
-
-if (isRunningAsPWA()) {
-  console.log('📱 Running as PWA');
-  document.documentElement.setAttribute('data-pwa', 'true');
-}
-</script>
     <style>
         * {
             -webkit-tap-highlight-color: transparent;
@@ -1397,83 +1320,6 @@ document.addEventListener('DOMContentLoaded', init);`;
                 toggleSidebar(false);
             }
         });
-    </script>
-    <script>
-// PWA Installation
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function() {
-    // ⚠️ GUNAKAN PATH RELATIF YANG BENAR
-    navigator.serviceWorker.register('./service-worker.js', { 
-      scope: './'  // ⚠️ SCOPE PENTING!
-    })
-    .then(function(registration) {
-      console.log('✅ Service Worker registered:', registration.scope);
-    })
-    .catch(function(error) {
-      console.log('❌ Service Worker failed:', error);
-    });
-  });
-}
-
-// Install Prompt
-let deferredPrompt;
-const installBtn = document.createElement('button');
-
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  
-  // Show install button
-  installBtn.innerHTML = '📱 Install App';
-  installBtn.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: #38bdf8;
-    color: white;
-    border: none;
-    padding: 12px 20px;
-    border-radius: 10px;
-    font-weight: bold;
-    z-index: 9999;
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  `;
-  
-  document.body.appendChild(installBtn);
-  
-  installBtn.addEventListener('click', () => {
-    installBtn.style.display = 'none';
-    deferredPrompt.prompt();
-    
-    deferredPrompt.userChoice.then((choiceResult) => {
-      if (choiceResult.outcome === 'accepted') {
-        console.log('User installed PWA');
-      }
-      deferredPrompt = null;
-    });
-  });
-});
-
-// App installed
-window.addEventListener('appinstalled', () => {
-  console.log('🎉 PWA installed successfully');
-  if (installBtn.parentNode) {
-    installBtn.parentNode.removeChild(installBtn);
-  }
-});
-
-// Detect if running as PWA
-function isRunningAsPWA() {
-  return window.matchMedia('(display-mode: standalone)').matches || 
-         window.navigator.standalone === true ||
-         document.referrer.includes('android-app://');
-}
-
-if (isRunningAsPWA()) {
-  console.log('📱 Running as PWA');
-  document.documentElement.setAttribute('data-pwa', 'true');
-}
     </script>
 </body>
 </html>
