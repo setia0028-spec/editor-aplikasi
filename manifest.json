@@ -1,28 +1,27 @@
 {
   "name": "LiteCode Hybrid",
   "short_name": "LiteCode",
-  "description": "Hybrid Code Editor PWA",
-  "start_url": "/",
+  "description": "Hybrid Code Editor",
+  
+  // ⚠️ PERBAIKI INI! ⚠️
+  "start_url": "./index.html",  // atau "/" jika di root
+  "scope": "./",
+  
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
+  
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "./icon-192.png",  // ⚠️ TAMBAH "./" 
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "./icon-512.png",  // ⚠️ TAMBAH "./"
+      "sizes": "512x512", 
+      "type": "image/png"
     }
-  ],
-  "categories": ["development", "education", "productivity"],
-  "lang": "id-ID",
-  "dir": "ltr",
-  "scope": "/"
+  ]
 }
