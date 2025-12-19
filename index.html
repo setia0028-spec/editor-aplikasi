@@ -6,85 +6,83 @@
     <title>LiteCode Hybrid</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/ace.js"></script>
-<!-- PWA Configuration -->
-<meta name="application-name" content="LiteCode">
-<meta name="apple-mobile-web-app-title" content="LiteCode">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0f172a">
-
-<!-- Manifest -->
-<link rel="manifest" href="manifest.json">
-
-<!-- Icons for various platforms -->
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
-<link rel="apple-touch-icon" href="icon-192.png">
-
-<!-- Register Service Worker -->
 <script>
-// Register Service Worker
+// PWA Installation
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(registration => {
-        console.log('ServiceWorker registered:', registration.scope);
-      })
-      .catch(error => {
-        console.log('ServiceWorker registration failed:', error);
-      });
+  window.addEventListener('load', function() {
+    // ⚠️ GUNAKAN PATH RELATIF YANG BENAR
+    navigator.serviceWorker.register('./service-worker.js', { 
+      scope: './'  // ⚠️ SCOPE PENTING!
+    })
+    .then(function(registration) {
+      console.log('✅ Service Worker registered:', registration.scope);
+    })
+    .catch(function(error) {
+      console.log('❌ Service Worker failed:', error);
+    });
   });
 }
 
 // Install Prompt
 let deferredPrompt;
-const installButton = document.createElement('button');
+const installBtn = document.createElement('button');
 
 window.addEventListener('beforeinstallprompt', (e) => {
-  // Prevent Chrome 67+ from automatically showing the prompt
   e.preventDefault();
   deferredPrompt = e;
   
   // Show install button
-  installButton.style.cssText = `
-    position: fixed; 
-    bottom: 20px; 
-    right: 20px; 
-    background: #38bdf8; 
-    color: white; 
-    border: none; 
-    padding: 10px 20px; 
-    border-radius: 8px; 
-    z-index: 1000;
-    font-size: 12px;
+  installBtn.innerHTML = '📱 Install App';
+  installBtn.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #38bdf8;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-weight: bold;
+    z-index: 9999;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   `;
-  installButton.textContent = '📲 Install App';
-  document.body.appendChild(installButton);
   
-  installButton.addEventListener('click', () => {
-    installButton.style.display = 'none';
+  document.body.appendChild(installBtn);
+  
+  installBtn.addEventListener('click', () => {
+    installBtn.style.display = 'none';
     deferredPrompt.prompt();
     
     deferredPrompt.userChoice.then((choiceResult) => {
       if (choiceResult.outcome === 'accepted') {
-        console.log('User accepted install');
-      } else {
-        console.log('User dismissed install');
+        console.log('User installed PWA');
       }
       deferredPrompt = null;
     });
   });
 });
 
-// App installed successfully
+// App installed
 window.addEventListener('appinstalled', () => {
-  console.log('PWA installed successfully');
-  if (installButton.parentNode) {
-    installButton.parentNode.removeChild(installButton);
+  console.log('🎉 PWA installed successfully');
+  if (installBtn.parentNode) {
+    installBtn.parentNode.removeChild(installBtn);
   }
 });
-    </script>
+
+// Detect if running as PWA
+function isRunningAsPWA() {
+  return window.matchMedia('(display-mode: standalone)').matches || 
+         window.navigator.standalone === true ||
+         document.referrer.includes('android-app://');
+}
+
+if (isRunningAsPWA()) {
+  console.log('📱 Running as PWA');
+  document.documentElement.setAttribute('data-pwa', 'true');
+}
+</script>
     <style>
         * {
             -webkit-tap-highlight-color: transparent;
